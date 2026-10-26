@@ -54,3 +54,6 @@ video/assets/footage/raw/
 docs/img/*.png
 public/demo/docs/*.png
 
+
+.vercel
+.env*
