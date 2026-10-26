@@ -1,6 +1,11 @@
 // Tool-calling loop for the research agent (Nemotron Super + Tavily tools).
 import { z } from "zod";
-import { chat, type ChatMessage, type LedgerSink, type OpenAITool } from "@/lib/llm/client";
+import {
+  chat,
+  type ChatMessage,
+  type LedgerSink,
+  type OpenAITool,
+} from "@/lib/llm/client";
 import type { ModelKey } from "@/lib/llm/models";
 
 export interface AgentTool<A extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -18,8 +23,11 @@ export interface AgentCtx {
 
 export function toOpenAITool(t: AgentTool): OpenAITool {
   const params = z.toJSONSchema(t.args) as Record<string, unknown>;
-  delete (params as any).$schema;
-  return { type: "function", function: { name: t.name, description: t.description, parameters: params } };
+  delete params.$schema;
+  return {
+    type: "function",
+    function: { name: t.name, description: t.description, parameters: params },
+  };
 }
 
 function safeJson(s: string): unknown {
@@ -48,8 +56,18 @@ export async function runToolAgent(p: {
   const max = p.maxRounds ?? 6;
 
   for (let round = 0; round < max; round++) {
-    const r = await chat({ model: p.model, step: `${p.step}.r${round}`, messages, tools: oaTools, ledger: p.ctx.ledger });
-    messages.push({ role: "assistant", content: r.content || null, tool_calls: r.toolCalls.length ? r.toolCalls : undefined });
+    const r = await chat({
+      model: p.model,
+      step: `${p.step}.r${round}`,
+      messages,
+      tools: oaTools,
+      ledger: p.ctx.ledger,
+    });
+    messages.push({
+      role: "assistant",
+      content: r.content || null,
+      tool_calls: r.toolCalls.length ? r.toolCalls : undefined,
+    });
     if (!r.toolCalls.length) return { final: r.content, rounds: round + 1 };
 
     for (const tc of r.toolCalls) {
@@ -60,11 +78,21 @@ export async function runToolAgent(p: {
       } else {
         const parsed = tool.args.safeParse(safeJson(tc.function.arguments));
         out = parsed.success
-          ? await tool.run(parsed.data, p.ctx).catch((e) => ({ error: String((e as Error)?.message ?? e) }))
-          : { error: "Invalid arguments", issues: (parsed as any).error.issues };
+          ? await tool
+              .run(parsed.data, p.ctx)
+              .catch((e) => ({ error: String((e as Error)?.message ?? e) }))
+          : { error: "Invalid arguments", issues: parsed.error.issues };
       }
-      await p.ctx.emit("tool", { name: tc.function.name, args: safeJson(tc.function.arguments), ok: !(out as any)?.error });
-      messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(out).slice(0, 12_000) });
+      await p.ctx.emit("tool", {
+        name: tc.function.name,
+        args: safeJson(tc.function.arguments),
+        ok: !(out && typeof out === "object" && "error" in out),
+      });
+      messages.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        content: JSON.stringify(out).slice(0, 12_000),
+      });
     }
   }
 

@@ -12,12 +12,23 @@ export interface WebResult {
   publishedDate?: string;
 }
 
-async function cached<T>(key: string, ttlHours: number, fn: () => Promise<T>): Promise<T> {
+async function cached<T>(
+  key: string,
+  ttlHours: number,
+  fn: () => Promise<T>,
+): Promise<T> {
   const k = createHash("sha256").update(key).digest("hex");
-  const { data } = await db().from("web_cache").select("payload, at").eq("key", k).maybeSingle();
-  if (data && Date.now() - new Date(data.at).getTime() < ttlHours * 3600_000) return data.payload as T;
+  const { data } = await db()
+    .from("web_cache")
+    .select("payload, at")
+    .eq("key", k)
+    .maybeSingle();
+  if (data && Date.now() - new Date(data.at).getTime() < ttlHours * 3600_000)
+    return data.payload as T;
   const fresh = await fn();
-  await db().from("web_cache").upsert({ key: k, payload: fresh as any, at: new Date().toISOString() });
+  await db()
+    .from("web_cache")
+    .upsert({ key: k, payload: fresh, at: new Date().toISOString() });
   return fresh;
 }
 
@@ -32,7 +43,11 @@ export async function tavilySearch(q: {
   return cached(`s:${JSON.stringify(q)}`, 24, async () => {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: { Authorization: `Bearer ${env.tavilyKey()}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${env.tavilyKey()}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(20000),
       body: JSON.stringify({
         query: q.query,
         search_depth: q.depth ?? "basic",
@@ -43,28 +58,50 @@ export async function tavilySearch(q: {
         include_answer: false,
       }),
     });
-    if (!res.ok) throw new Error(`Tavily search ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    if (!res.ok)
+      throw new Error(
+        `Tavily search ${res.status}: ${(await res.text()).slice(0, 200)}`,
+      );
     const data = await res.json();
-    return (data.results ?? []).map((r: any) => ({
-      url: r.url,
-      title: r.title,
-      content: String(r.content ?? "").slice(0, 1200),
-      score: r.score,
-      publishedDate: r.published_date,
-    }));
+    return (data.results ?? []).map(
+      (r: {
+        url: string;
+        title: string;
+        content?: string;
+        score: number;
+        published_date?: string;
+      }) => ({
+        url: r.url,
+        title: r.title,
+        content: String(r.content ?? "").slice(0, 1200),
+        score: r.score,
+        publishedDate: r.published_date,
+      }),
+    );
   });
 }
 
-export async function tavilyExtract(urls: string[]): Promise<{ url: string; text: string }[]> {
+export async function tavilyExtract(
+  urls: string[],
+): Promise<{ url: string; text: string }[]> {
   return cached(`e:${urls.join("|")}`, 72, async () => {
     const res = await fetch("https://api.tavily.com/extract", {
       method: "POST",
-      headers: { Authorization: `Bearer ${env.tavilyKey()}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${env.tavilyKey()}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(20000),
       body: JSON.stringify({ urls }),
     });
     if (!res.ok) throw new Error(`Tavily extract ${res.status}`);
     const data = await res.json();
-    return (data.results ?? []).map((r: any) => ({ url: r.url, text: String(r.raw_content ?? "").slice(0, 6000) }));
+    return (data.results ?? []).map(
+      (r: { url: string; raw_content?: string }) => ({
+        url: r.url,
+        text: String(r.raw_content ?? "").slice(0, 6000),
+      }),
+    );
   });
 }
 

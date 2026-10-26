@@ -43,7 +43,7 @@ export async function recluster(packId: string, windowDays: number, threshold: {
     .eq("pack", packId)
     .not("geohash6", "is", null);
 
-  const inputs: ClusterInput[] = (rows ?? []).map((r: any) => ({
+  const inputs: ClusterInput[] = (rows ?? []).map((r) => ({
     id: r.id,
     category: r.category,
     geohash6: r.geohash6,

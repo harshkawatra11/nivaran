@@ -8,6 +8,7 @@ export const maxDuration = 300;
 export async function GET(req: NextRequest) {
   await connection(); // the nightly sweep must never be prerendered or cached
   const secret = env.cronSecret();
+  if (!secret) return NextResponse.json({error:"Cron authentication is not configured"},{status:503});
   if (secret) {
     const auth = req.headers.get("authorization");
     if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
