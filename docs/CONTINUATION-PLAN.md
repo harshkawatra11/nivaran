@@ -16,7 +16,7 @@ The deployed repository contains the deterministic core, pipeline, API routes, P
 - [x] Generate logo and favicon, install assets and metadata.
 - [x] Verify model catalog and capabilities with the existing spike once Nebius sign-in is available.
 - [x] Configure Vercel production environment and complete local tests, build, and responsive browser checks.
-- [ ] Deploy and verify production.
+- [x] Deploy and verify production.
 
 ## Verification and boundaries
 Test SSE chunk parsing and input validation. Run deterministic tests and production build. Exercise report creation, live pipeline, document packet, filing, clock, board, cluster and ledger as credentials permit. Samples are labeled; unavailable providers return actionable errors rather than invented output.
@@ -35,3 +35,11 @@ Voice service port and deployment (T41–47), source verification/impact researc
 - Nightly sweep: 51 cases, no errors; standalone job bundle builds. Nebius job is not yet deployed.
 - Tavily CLI authenticated, live search verified, eight official Codex skills installed. Auto-discovery may require restart/rescan.
 - Branding generated using the built-in image tool: cream N/clock monogram on verdigris. Source at public/brand/nivaran-logo.png; favicon and Apple icon installed.
+
+## Production verification
+Production alias: https://nivaran-indol.vercel.app
+Deployment: dpl_J8r5mWgi9Sp1QyHfP9m1QjgNFKVg (Ready).
+Draft PR: https://github.com/harshkawatra11/nivaran/pull/1. Master remains unmerged.
+A fresh production Hindi report reached ready with 11 model calls (estimated $0.014764); its owned PDF downloaded (397,281 bytes). Public sample PDFs, favicon, board and ledger returned successfully. Cron rejects unauthenticated requests with 401. All three browser regression tests passed against production.
+
+Final local checks: 126 unit tests, lint, typecheck and production build pass.

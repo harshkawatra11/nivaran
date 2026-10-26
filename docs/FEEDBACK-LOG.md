@@ -39,3 +39,5 @@ feeds both `docs/DEVPOST.md`'s required feedback section and the README's feedba
 - Exercised filing, a +31-day jump, RTI filing, another +31-day jump, and First Appeal generation. Cross-session reads and anonymous sample mutations were rejected.
 - Found and fixed the original PDF renderer's WinAnsi failure on a model-generated non-breaking hyphen. Noto Devanagari triggered a fontkit anchor error on common Hindi words; Tiro Devanagari Hindi passed the regression and is embedded in packets.
 - Fixed a board metric that labeled an average as a median, and added explicit ownership and input validation around filing actions.
+
+- Production verification: a fresh Hindi report reached ready on Vercel with 11 calls, estimated $0.014764. Its PDF downloaded at 397,281 bytes. All three browser regression tests also passed against the public alias.
