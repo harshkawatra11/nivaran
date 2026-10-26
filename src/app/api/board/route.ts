@@ -1,3 +1,4 @@
+import { median } from "@/lib/input";
 // GET: ward accountability board data. Per-authority open/overdue scorecards plus the
 // list of clusters (watching and systemic), for the map and list view.
 import { NextResponse } from "next/server";
@@ -11,28 +12,52 @@ export async function GET() {
   const supa = db();
   const pack = getPack("in-dl");
 
-  const { data: cases } = await supa.from("cases").select("status, jurisdiction, created_at").eq("pack", "in-dl");
-  const { data: clusters } = await supa.from("clusters").select("*").eq("pack", "in-dl").order("case_count", { ascending: false });
+  const { data: cases } = await supa
+    .from("cases")
+    .select("status, jurisdiction, created_at")
+    .eq("pack", "in-dl");
+  const { data: clusters } = await supa
+    .from("clusters")
+    .select("*")
+    .eq("pack", "in-dl")
+    .order("case_count", { ascending: false });
 
-  const byAuthority = new Map<string, { name: string; open: number; overdue: number; daysSum: number; daysCount: number }>();
+  const byAuthority = new Map<
+    string,
+    { name: string; open: number; overdue: number; days: number[] }
+  >();
   const now = Date.now();
   for (const c of cases ?? []) {
-    const authorityId = (c.jurisdiction as any)?.authority?.id;
+    const authorityId = (
+      c.jurisdiction as { authority?: { id?: string } } | null
+    )?.authority?.id;
     if (!authorityId) continue;
     const authority = pack.authorities.find((a) => a.id === authorityId);
     if (!authority) continue;
     if (c.status === "resolved" || c.status === "failed") continue;
 
-    const entry = byAuthority.get(authorityId) ?? { name: authority.name, open: 0, overdue: 0, daysSum: 0, daysCount: 0 };
+    const entry = byAuthority.get(authorityId) ?? {
+      name: authority.name,
+      open: 0,
+      overdue: 0,
+      days: [],
+    };
     entry.open++;
     if (isOverdueStatus(c.status)) entry.overdue++;
-    entry.daysSum += Math.floor((now - new Date(c.created_at).getTime()) / 86400000);
-    entry.daysCount++;
+    entry.days.push(
+      Math.floor((now - new Date(c.created_at).getTime()) / 86400000),
+    );
     byAuthority.set(authorityId, entry);
   }
 
   const scorecards = [...byAuthority.entries()]
-    .map(([id, v]) => ({ authorityId: id, name: v.name, open: v.open, overdue: v.overdue, medianDaysOpen: v.daysCount ? Math.round(v.daysSum / v.daysCount) : 0 }))
+    .map(([id, v]) => ({
+      authorityId: id,
+      name: v.name,
+      open: v.open,
+      overdue: v.overdue,
+      medianDaysOpen: Math.round(median(v.days)),
+    }))
     .sort((a, b) => b.overdue - a.overdue);
 
   return NextResponse.json({ scorecards, clusters: clusters ?? [] });

@@ -57,3 +57,9 @@ public/demo/docs/*.png
 
 .vercel
 .env*
+
+# Local scratch and Supabase CLI state
+/work/
+/supabase/.temp/
+/playwright-report/
+/test-results/

@@ -30,3 +30,14 @@ feeds both `docs/DEVPOST.md`'s required feedback section and the README's feedba
 - (Pending, to fill once `npm run spike` is run against a real key) `chat_template_kwargs:
   {enable_thinking:false}` pass-through, `json_schema` strict-mode support per tier, and
   observed latency/cost per tier from real traffic.
+
+## 2026-10-26 — continuation and live verification
+
+- Verified all five Nemotron IDs using the live Token Factory catalog. Chat, tool calls and vision succeeded. `enable_thinking:false` was accepted by all five. Short JSON-schema probes parsed on 3/5 tiers and JSON-object on 4/5; the application retains validation and a repair retry. Full results are in SPIKE-RESULTS.md.
+- A live Hindi sample reached ready in roughly 57 seconds with 11 recorded calls, estimated at $0.015422. The current pipeline handled schema repair and generated both language copies.
+- Verified Tavily CLI OAuth plus the app's native REST integration. An official-domain DJB search returned three government sources. Installed the eight official Tavily Codex skills; a client rescan may be needed for automatic discovery in future sessions.
+- Exercised filing, a +31-day jump, RTI filing, another +31-day jump, and First Appeal generation. Cross-session reads and anonymous sample mutations were rejected.
+- Found and fixed the original PDF renderer's WinAnsi failure on a model-generated non-breaking hyphen. Noto Devanagari triggered a fontkit anchor error on common Hindi words; Tiro Devanagari Hindi passed the regression and is embedded in packets.
+- Fixed a board metric that labeled an average as a median, and added explicit ownership and input validation around filing actions.
+
+- Production verification: a fresh Hindi report reached ready on Vercel with 11 calls, estimated $0.014764. Its PDF downloaded at 397,281 bytes. All three browser regression tests also passed against the public alias.

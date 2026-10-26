@@ -92,7 +92,7 @@ export async function runNightly(opts: { realNow?: Date } = {}): Promise<Nightly
   summary.ms = Date.now() - t0;
   await db()
     .from("web_cache")
-    .upsert({ key: "nightly:last", payload: summary as any, at: new Date().toISOString() });
+    .upsert({ key: "nightly:last", payload: summary, at: new Date().toISOString() });
   return summary;
 }
 

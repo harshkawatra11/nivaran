@@ -1,174 +1,88 @@
-<div align="center">
+# Nivaran · निवारण
 
-# Nivaran &middot; निवारण
+*A complaint. A paper trail. A way forward.*
 
-**File once. We keep the clock.**
+[Live app](https://nivaran-indol.vercel.app) · [Source](https://github.com/harshkawatra11/nivaran) · MIT
 
-*An agent that turns a photo and two sentences into a complaint the right office cannot ignore, then escalates by law when the government misses its own deadline.*
+Nivaran helps Delhi residents turn a civic problem into a reviewed complaint, record its official filing, and prepare follow-up documents when deadlines pass. Citizens review and submit every filing themselves.
 
-[Live demo](https://nivaran-indol.vercel.app) &middot; [Repo](https://github.com/harshkawatra11/nivaran) &middot; MIT License
+## Try the app
 
-Built with **NVIDIA Nemotron** (3.5 Lightning, 3.5 Super VL, 3 Super, 3 Ultra, 3 Nano) on **Nebius Token Factory**, a **Nebius Serverless Job**, a **Nebius Serverless Endpoint** (voice agent), **Tavily**, and Sarvam AI speech (STT/TTS only).
+1. Open **Report**, then **Try Meena’s case** for a fictional Hindi water-supply report.
+2. Select **Prepare my complaint**. The eight-stage pipeline streams its progress into the case workspace.
+3. Inspect the responsible office, research sources, review rounds, English/Hindi documents, and actual recorded model usage. Download the PDF.
+4. For a demonstration only, record a fictional filing reference and today’s date. The demo clock’s **+30d** action prepares a reminder and RTI when the relevant policy periods have passed.
+5. Record the RTI filing using the effective demo date, then advance another 30 days to prepare a First Appeal.
+6. Open **Ward board** and a locality cluster to inspect the synthetic reports and a real Nemotron Ultra systemic brief.
 
-</div>
+The sample acknowledgement and reply images are watermarked **DEMO SAMPLE**. The board contains 60 seeded synthetic reports plus reports created on this deployment. Do not present sample filings as real government submissions.
 
-## The problem
+## Current implementation
 
-Filing a civic complaint in India is easy. Getting an answer is the hard part. The Right to
-Information Act, 2005 gives every citizen a legal 30-day answer window (section 7(1)), and
-if it is missed the law treats it as an automatic refusal (section 7(2)) that can be
-appealed within 30 days (section 19(1)), with a further 90-day window to the Information
-Commission if that appeal is also ignored (section 19(3)). Almost nobody tracks these
-windows by hand, so most citizens simply give up after the first unanswered complaint.
-
-## What it does
-
-1. **Report.** A photo and a few sentences, in Hindi or English, typed or spoken.
-2. **Perceive.** Nemotron 3.5 Super VL reads the photo. Nemotron 3.5 Lightning extracts the
-   structured facts.
-3. **Decide (code).** The responsible office and the applicable service standard come from
-   a versioned Delhi jurisdiction pack with sources, never a model guess.
-4. **Research.** Nemotron 3 Super runs as a tool-calling agent, searching live with Tavily
-   on official government domains only, to confirm the current grievance channel and find
-   corroborating notices or news. Any link the agent did not actually fetch is dropped by
-   code before it reaches the letter.
-5. **Draft + Bench.** Super drafts the complaint; Nemotron 3 Ultra attacks it the way a
-   reluctant officer would, looking for a reason to close it on a technicality. Super
-   revises until Ultra passes it, up to three rounds.
-6. **Clock.** The citizen files it and photographs the acknowledgement; Super VL reads the
-   registration number and date; the statutory clock starts.
-7. **Escalate.** A nightly sweep (Nebius Serverless Job, with a Vercel cron fallback)
-   advances every overdue case through reminder &rarr; RTI (s.6) &rarr; First Appeal (s.19(1))
-   &rarr; Second Appeal (s.19(3)), drafting each document automatically when its trigger
-   deadline passes.
-8. **Systemic.** Repeated failures in the same area are clustered by category and geohash;
-   Nemotron 3 Ultra writes a systemic-failure brief and a collective representation a legal
-   aid clinic can act on.
-9. **Voice.** "Sahayak", a real-time Hindi/English voice agent (Sarvam STT/TTS plus
-   Nemotron 3.5 Lightning for reasoning and tool calls), lets a citizen who cannot type
-   file a report or ask "what happened to my complaint?" out loud.
-
-## How we use NVIDIA Nemotron on Nebius Token Factory
-
-| Model | Where it is used | Why this size |
-|---|---|---|
-| `nvidia/Nemotron-3_5-Lightning` | Intake field extraction, Hindi copies, the real-time voice agent | Fast and cheap enough for sub-second turns and streaming tool calls |
-| `nvidia/Nemotron-3.5-Super-VL` | Reading photos, acknowledgement slips, and reply letters | The only tier with vision input |
-| `nvidia/nemotron-3-super-120b-a12b` | The Tavily tool-calling research agent, drafting, and revisions | Reasoning strong enough for multi-step tool use, at a fraction of Ultra's cost |
-| `nvidia/Nemotron-3-Ultra-550b-a55b` | Adversarial pre-filing review, reply-outcome judgment, systemic briefs | Reserved for the judgment calls that matter most |
-| `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Bulk per-case status digests in the nightly sweep | Cheapest tier for high-volume, low-stakes text |
-
-Every call goes through one OpenAI-compatible endpoint
-(`https://api.tokenfactory.nebius.com/v1`), so switching a stage between tiers is a one-line
-change (`src/lib/llm/models.ts`). JSON-schema structured outputs, tool calling, and
-automatic prompt caching all came for free with that one integration
-(`src/lib/llm/client.ts`, `src/lib/llm/json.ts`, `src/lib/llm/agent.ts`). Per-call cost,
-latency, and token counts are logged for every single request to an `llm_calls` table and
-surfaced live on the `/how` page and inside every case's "Model ledger" drawer.
-
-## The models propose. The code decides.
-
-| Decided by an LLM | Decided by plain code |
+| Available | Remaining |
 |---|---|
-| What the photo shows (`src/lib/pipeline/run.ts`, perceive stage) | Which authority is legally responsible (`src/lib/jurisdiction.ts`) |
-| How to phrase the facts paragraph (`src/lib/llm/prompts.ts`, DRAFT_SYSTEM) | The statutory and policy deadlines (`src/lib/ladder/advance.ts`) |
-| Whether a draft would survive a real officer's first read (bench review) | Which ladder step fires next, and when (`src/lib/ladder/advance.ts`) |
-| How a government reply should be summarised for the citizen | Whether a reply counts as resolved, evasive, or a trigger for the next filing (`src/app/api/cases/[id]/reply/route.ts`) |
-| Whether an RTI question is legally safe to file | The RTI question-legality linter itself, 18 deterministic rules ported from the author's earlier project Adhikaar (`src/lib/rti/linter.ts`, 100+ tests) |
+| Responsive homepage, report intake, case list and streamed workspace | Real-time voice agent and its separate hosting |
+| Jurisdiction routing, safety triage, RTI linter and escalation rules | Independent legal-source verification for the Delhi pack |
+| Evidence upload to private Supabase Storage | Full 30-case model evaluation harness |
+| Live Tavily official-source research and Nemotron review | Nebius Serverless Job deployment |
+| Bilingual document viewer and Unicode PDF packets | Narrated demo video and final Devpost submission |
+| Manual/vision acknowledgement, reply review, filing steps and demo clock | Broader jurisdiction coverage |
+| Ward map, clusters, systemic briefs, model ledger and nightly function | |
 
-## Nebius Serverless Job
+Voice is not currently available. The `/how` page reports limitations and usage without inventing evaluation results.
 
-`scripts/nightly.ts` (bundled by `scripts/build-job.mjs` into `dist-job/nightly.cjs`) runs
-`runNightly()` from `src/lib/nightly.ts`: it sweeps every open case through the ladder,
-writes Nemotron Nano digests for each transition, reclusters systemic failures, and
-refreshes Nemotron Ultra briefs for clusters that grew. The same function is exposed as a
-Vercel cron fallback at `/api/cron/nightly` so the escalation story works even before the
-Nebius job is deployed. See `Dockerfile.job` and the deployment notes for the exact
-`nebius ai job create` command.
+## NVIDIA Nemotron on Nebius Token Factory
 
-## Evaluation
+All calls use `https://api.tokenfactory.nebius.com/v1`. Model IDs were verified against the live catalog on 26 October 2026; see [spike results](docs/SPIKE-RESULTS.md).
 
-`npm run eval` (see `eval/`) scores category and authority routing accuracy, emergency
-recall, and bench-review defect recall against a hand-written case set, and writes
-`eval/RESULTS.md`.
+| Model tier | Runtime role |
+|---|---|
+| Lightning | Intake facts and Hindi copies |
+| Super VL | Photos, acknowledgements and reply images |
+| Super | Tavily tool-calling research, complaint drafting and revisions |
+| Ultra | Adversarial review, reply judgment and systemic briefs |
+| Nano | Nightly status digests |
 
-## Architecture
+Structured outputs are validated with Zod and have a repair retry. The code determines responsibility, emergency gates, deadlines and escalation transitions. Research citations must come from URLs actually returned by the web tools. Cost estimates come from recorded token usage and configured rates; they are not billing receipts.
 
-```mermaid
-flowchart LR
-  A[Citizen: photo + text + voice] --> B[Super VL: perceive]
-  B --> C[Lightning: extract facts]
-  C --> D{Code: triage + jurisdiction pack}
-  D --> E[Super agent + Tavily]
-  E --> F[Super: draft]
-  F --> G[Ultra: bench review]
-  G -- revise --> F
-  G -- pass --> H[Packet + clock]
-  H --> I[Nebius Serverless Job: nightly sweep]
-  I --> J[RTI / First Appeal / Second Appeal]
-  I --> K[Clusters -> Ultra systemic brief]
-```
+A local live run reached `ready` in about 57 seconds, with 11 model calls costing approximately $0.0154. Timing and cost vary with the report and provider. The full filing → RTI → First Appeal lifecycle and cross-session access restrictions were exercised locally.
 
-## Run it locally
+## Local setup
 
 ```bash
-git clone https://github.com/harshkawatra11/nivaran && cd nivaran
-npm install
-cp .env.example .env.local   # fill NEBIUS_API_KEY, TAVILY_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-# run supabase/schema.sql in the Supabase SQL editor; create a private Storage bucket "evidence"
-npm run spike     # checks every Nemotron model on your key, writes docs/SPIKE-RESULTS.md
-npm run dev       # http://localhost:3000
-npm run test      # deterministic core tests (117+)
-npm run typecheck
-npm run eval      # writes eval/RESULTS.md
-npm run nightly   # one nightly sweep, locally
-
-# voice agent (second terminal)
-cd voice-service && python -m venv .venv && .venv/Scripts/activate  # or: source .venv/bin/activate
-pip install -r requirements.txt && cp .env.example .env   # fill SARVAM_API_KEY, NEBIUS_API_KEY, VOICE_* secrets
-uvicorn app.main:app --port 8080     # then open http://127.0.0.1:3000/voice
+npm ci
+cp .env.example .env.local
+# Set NEBIUS_API_KEY, TAVILY_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+# Apply supabase/schema.sql and create a PRIVATE bucket called evidence.
+npm run dev -- --port 3100
 ```
 
-## Testing instructions for judges
+The service-role key stays server-side. Anonymous browser sessions use an HTTP-only cookie; private case access requires ownership. Public sample cases are read-only. Demo time travel affects only the current session. Review the limitations before using this hackathon build with real evidence.
 
-No login is required; each browser gets its own private session.
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e   # with the local app running on port 3100
+npm run spike     # live model probes; consumes provider credits
+npm run seed      # ensure 60 synthetic reports, without deleting existing reports
+npm run seed -- --briefs  # generate real model-written cluster briefs
+npm run demo:docs
+npm run nightly
+npm run build:job
+```
 
-1. Open the [live demo](https://nivaran-indol.vercel.app), click **Report a problem**, then
-   **Try Meena's case** (or upload your own photo and text).
-2. Watch the eight pipeline stages run live. Open **Model ledger** to see every Nemotron
-   call and its cost.
-3. Click **I've filed it**, then use the sample acknowledgement. Super VL reads the
-   registration number and date; the clock starts.
-4. Use **Time travel (demo)**, +30 days. The case goes overdue, and the reminder and RTI
-   are drafted automatically.
-5. Click **I filed the RTI**, then +30 days. The First Appeal is drafted.
-6. Open **Ward board**, then a systemic cluster, to see the Ultra-written brief and the
-   collective representation PDF.
-7. Open **How it works** for the architecture, live per-model costs, and eval results.
+## Deployment
 
-## Built during the hackathon
+Vercel hosts the app and a protected `/api/cron/nightly` fallback scheduled in `vercel.json`. Set `CRON_SECRET` in production. The same nightly function can run as a container job using `Dockerfile.job`; a deployed Nebius job is not yet claimed. Configure the four provider/database variables and the JSON-mode flags from the spike before deploying. Keep all keys in ignored environment files or Vercel secrets.
 
-New repository, created 25 Oct 2026 for the Nebius x NVIDIA Global AI Hackathon
-(submission period 26 Aug &ndash; 30 Oct 2026). It reuses and adapts, with attribution, two
-small deterministic utilities from the author's own earlier project Adhikaar: the RTI
-question legality linter (18 rules) and the statutory deadline arithmetic pattern.
-Everything else &mdash; the full Nemotron agent pipeline, Tavily research agent, adversarial
-bench review, escalation ladder, nightly Nebius Serverless Job, systemic clustering, the
-real-time voice agent, UI, and evaluation harness &mdash; was built for this submission.
+## Design and provenance
 
-## Feedback on Nebius Token Factory, AI Cloud, and NVIDIA tooling
+The paper-and-ink identity uses Fraunces, Inter Tight, JetBrains Mono and Tiro Devanagari Hindi. The logo was generated with Codex’s built-in image tool, then resized for browser and Apple icons. PDFs embed an OFL-licensed Tiro font; its license is included in `public/fonts/`.
 
-See `docs/FEEDBACK-LOG.md` for the dated, specific notes collected while building this
-(model ID casing in the catalog, structured-output behaviour per tier, reasoning-toggle
-behaviour, Serverless Job/Endpoint setup on Windows, Tavily domain filtering). A condensed
-version of this is also submitted as the hackathon's required feedback.
+Created for the Nebius × NVIDIA Global AI Hackathon. The author’s earlier Adhikaar project supplied the RTI linter and deadline-arithmetic pattern. The remaining pipeline, systemic layer and interface were built for this entry. Claude Code built the initial backend; Codex continued the citizen journey, design, integrations and verification. See [continuation plan](docs/CONTINUATION-PLAN.md) and [feedback log](docs/FEEDBACK-LOG.md).
 
-## Limitations
+Delhi civic services only. Policy timelines and office information still awaiting independent confirmation are marked **Source pending**. Not legal advice.
 
-Delhi civic services only, for now. Legal and jurisdictional facts not yet re-verified
-against a live source are marked "Source pending" in the UI rather than presented as
-settled. Nivaran prepares filings; the citizen files them. This is not legal advice.
-
-## License
-
-MIT &copy; 2026 Harsh Kawatra. See [LICENSE](./LICENSE).
+MIT © 2026 Harsh Kawatra. See [LICENSE](LICENSE).

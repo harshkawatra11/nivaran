@@ -1,3 +1,13 @@
+type ProbeResponse = {
+  choices?: {
+    message?: {
+      content?: string;
+      reasoning_content?: string;
+      reasoning?: string;
+      tool_calls?: unknown[];
+    };
+  }[];
+};
 // T02: Token Factory spike. Run with `npm run spike` after filling .env.local.
 // Probes every Nemotron model tier on Token Factory for: catalog presence, plain chat,
 // the `enable_thinking` toggle, structured JSON output, tool calling, and vision input.
@@ -5,7 +15,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const BASE = (process.env.NEBIUS_BASE_URL ?? "https://api.tokenfactory.nebius.com/v1").replace(/\/$/, "");
+const BASE = (
+  process.env.NEBIUS_BASE_URL ?? "https://api.tokenfactory.nebius.com/v1"
+).replace(/\/$/, "");
 const KEY = process.env.NEBIUS_API_KEY;
 
 const IDS = {
@@ -19,7 +31,7 @@ const IDS = {
 interface PostResult {
   status: number;
   ms: number;
-  json: any;
+  json: ProbeResponse | null;
   text: string;
   rl: { req: string | null; tok: string | null };
 }
@@ -28,11 +40,14 @@ async function post(body: unknown): Promise<PostResult> {
   const t0 = Date.now();
   const res = await fetch(`${BASE}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   });
   const text = await res.text();
-  let json: any = null;
+  let json: ProbeResponse | null = null;
   try {
     json = JSON.parse(text);
   } catch {
@@ -50,9 +65,14 @@ async function post(body: unknown): Promise<PostResult> {
   };
 }
 
-const rows: string[] = ["| test | model | status | ms | note |", "|---|---|---|---|---|"];
+const rows: string[] = [
+  "| test | model | status | ms | note |",
+  "|---|---|---|---|---|",
+];
 function row(t: string, m: string, r: PostResult, note: string) {
-  rows.push(`| ${t} | ${m} | ${r.status} | ${r.ms} | ${note.replace(/\|/g, "/").slice(0, 160)} |`);
+  rows.push(
+    `| ${t} | ${m} | ${r.status} | ${r.ms} | ${note.replace(/\|/g, "/").slice(0, 160)} |`,
+  );
 }
 
 let jsonSchemaOkCount = 0;
@@ -61,18 +81,25 @@ let thinkingKwargOkCount = 0;
 
 async function main() {
   if (!KEY) {
-    console.error("NEBIUS_API_KEY is not set. Fill .env.local from .env.example and retry.");
+    console.error(
+      "NEBIUS_API_KEY is not set. Fill .env.local from .env.example and retry.",
+    );
     process.exit(1);
   }
 
   let nvIds: string[] = [];
   try {
-    const modelsRes = await fetch(`${BASE}/models`, { headers: { Authorization: `Bearer ${KEY}` } });
+    const modelsRes = await fetch(`${BASE}/models`, {
+      headers: { Authorization: `Bearer ${KEY}` },
+    });
     const models = await modelsRes.json();
-    const ids: string[] = (models.data ?? []).map((m: any) => m.id);
+    const ids: string[] = (models.data ?? []).map((m: { id: string }) => m.id);
     nvIds = ids.filter((i) => i.toLowerCase().startsWith("nvidia/"));
     for (const [k, id] of Object.entries(IDS)) {
-      if (!ids.includes(id)) rows.push(`| catalog-miss | ${k} (${id}) | - | - | NOT FOUND in /models |`);
+      if (!ids.includes(id))
+        rows.push(
+          `| catalog-miss | ${k} (${id}) | - | - | NOT FOUND in /models |`,
+        );
     }
   } catch (e) {
     rows.push(`| catalog | - | - | - | /models fetch failed: ${String(e)} |`);
@@ -80,13 +107,17 @@ async function main() {
 
   for (const [k, id] of Object.entries(IDS)) {
     // 1. Plain chat
-    const r1 = await post({ model: id, messages: [{ role: "user", content: "Reply with the word OK" }], max_tokens: 256 });
+    const r1 = await post({
+      model: id,
+      messages: [{ role: "user", content: "Reply with the word OK" }],
+      max_tokens: 256,
+    });
     const msg1 = r1.json?.choices?.[0]?.message ?? {};
     row(
       "plain",
       k,
       r1,
-      `reasoning=${!!(msg1.reasoning_content ?? msg1.reasoning)} thinkTag=${/<think>/.test(msg1.content ?? "")} content=${JSON.stringify(msg1.content)?.slice(0, 60)} rl=${r1.rl.req}/${r1.rl.tok}`
+      `reasoning=${!!(msg1.reasoning_content ?? msg1.reasoning)} thinkTag=${/<think>/.test(msg1.content ?? "")} content=${JSON.stringify(msg1.content)?.slice(0, 60)} rl=${r1.rl.req}/${r1.rl.tok}`,
     );
 
     // 2. enable_thinking:false toggle
@@ -100,12 +131,20 @@ async function main() {
     row("thinking-off", k, r2, r2.status === 200 ? "accepted" : r2.text);
 
     // 3. json_schema structured output
-    const schema = { type: "object", properties: { a: { type: "string" } }, required: ["a"], additionalProperties: false };
+    const schema = {
+      type: "object",
+      properties: { a: { type: "string" } },
+      required: ["a"],
+      additionalProperties: false,
+    };
     const r3 = await post({
       model: id,
       messages: [{ role: "user", content: 'Return JSON: {"a":"hello"}' }],
       max_tokens: 256,
-      response_format: { type: "json_schema", json_schema: { name: "t", schema, strict: true } },
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "t", schema, strict: true },
+      },
     });
     let parsedOk = false;
     try {
@@ -141,19 +180,33 @@ async function main() {
     function: {
       name: "get_time",
       description: "Get the current time in a timezone",
-      parameters: { type: "object", properties: { tz: { type: "string" } }, required: ["tz"] },
+      parameters: {
+        type: "object",
+        properties: { tz: { type: "string" } },
+        required: ["tz"],
+      },
     },
   };
   for (const k of ["super", "ultra"] as const) {
     const r = await post({
       model: IDS[k],
-      messages: [{ role: "user", content: "What time is it in Asia/Kolkata? Use the tool." }],
+      messages: [
+        {
+          role: "user",
+          content: "What time is it in Asia/Kolkata? Use the tool.",
+        },
+      ],
       tools: [tool],
       tool_choice: "auto",
       max_tokens: 512,
     });
     const calls = r.json?.choices?.[0]?.message?.tool_calls;
-    row("tool-call", k, r, `tool_calls=${JSON.stringify(calls)?.slice(0, 120)}`);
+    row(
+      "tool-call",
+      k,
+      r,
+      `tool_calls=${JSON.stringify(calls)?.slice(0, 120)}`,
+    );
   }
 
   // 6. Vision (superVL) - use a 1x1 pixel jpeg if no demo photo exists yet
@@ -166,7 +219,7 @@ async function main() {
     // 1x1 white jpeg
     const tiny = Buffer.from(
       "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=",
-      "base64"
+      "base64",
     );
     dataUrl = `data:image/jpeg;base64,${tiny.toString("base64")}`;
   }
@@ -183,10 +236,21 @@ async function main() {
     ],
     max_tokens: 256,
   });
-  row("vision", "superVL", rv, `content=${JSON.stringify(rv.json?.choices?.[0]?.message?.content)?.slice(0, 100)}`);
+  row(
+    "vision",
+    "superVL",
+    rv,
+    `content=${JSON.stringify(rv.json?.choices?.[0]?.message?.content)?.slice(0, 100)}`,
+  );
 
-  const thinkingKwarg = thinkingKwargOkCount === Object.keys(IDS).length ? "on" : "off";
-  const jsonMode = jsonSchemaOkCount >= 3 ? "schema" : jsonObjectOkCount >= 3 ? "object" : "prompt";
+  const thinkingKwarg =
+    thinkingKwargOkCount === Object.keys(IDS).length ? "on" : "off";
+  const jsonMode =
+    jsonSchemaOkCount >= 3
+      ? "schema"
+      : jsonObjectOkCount >= 3
+        ? "object"
+        : "prompt";
   const jsonStrict = jsonSchemaOkCount === Object.keys(IDS).length;
 
   const out = `# Spike results ${new Date().toISOString()}
