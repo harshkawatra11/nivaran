@@ -1,0 +1,12 @@
+.git
+.next
+.vercel
+.env*
+work
+node_modules
+supabase/.temp
+outputs
+playwright-report
+test-results
+voice-service
+video
