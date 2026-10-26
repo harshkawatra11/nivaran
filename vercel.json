@@ -1,0 +1,4 @@
+{
+  "crons": [{ "path": "/api/cron/nightly", "schedule": "30 21 * * *" }],
+  "regions": ["bom1"]
+}
